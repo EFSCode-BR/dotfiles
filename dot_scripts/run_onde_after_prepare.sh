@@ -229,22 +229,23 @@ end_section "Git configurado"
 start_section "Configurando Bitwarden e SSH"
 
 # Login no Bitwarden
-bw logout 2>/dev/null || true
+BW_CMD=~/bin/bw
+"$BW_CMD" logout 2>/dev/null || true
 
-bw login --apikey
+"$BW_CMD" login --apikey
 export BW_CLIENTID="$BW_CLIENTID"
 export BW_CLIENTSECRET="$BW_CLIENTSECRET"
-BW_SESSION=$(bw unlock --passwordenv BW_PASSWORD --raw)
+BW_SESSION=$("$BW_CMD" unlock --passwordenv BW_PASSWORD --raw)
 
 # Configura chave SSH
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 
 # Extrai e configura as chaves SSH
-bw get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
+"$BW_CMD" get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
     jq -r '.sshKey.privateKey' > ~/.ssh/deploy_key
 
-bw get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
+"$BW_CMD" get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
     jq -r '.sshKey.publicKey' > ~/.ssh/deploy_key.pub
 
 # Altera o nilve de permissão
