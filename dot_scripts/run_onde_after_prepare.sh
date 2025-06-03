@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 
 # ╭──────────────────────────────────────────────╮
@@ -35,7 +35,7 @@ end_section() {
 # ╰──────────────────────────────────────────────╯
 start_section "Verificando variáveis de ambiente"
 
-REQUIRED_VARS=("GITHUB_USERNAME" "BW_CLIENTID" "BW_CLIENTSECRET" "BW_PASSWORD" "SERVER_TYPE" "TS_AUTH_KEY")
+REQUIRED_VARS=("GITHUB_USERNAME" "BW_CLIENTID" "BW_CLIENTSECRET" "BW_PASSWORD" "SERVER_TYPE" "TS_AUTH_KEY" "HOSTNAME")
 MISSING_VARS=()
 
 for var in "${REQUIRED_VARS[@]}"; do
@@ -56,6 +56,7 @@ if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
     echo "export BW_PASSWORD=..."
     echo "export SERVER_TYPE=(PROD|DEV)"
     echo "export TS_AUTH_KEY=... (https://login.tailscale.com/admin/settings/keys)"
+    echo "export HOSTNAME=... (nome do servidor)"
     exit 1
 fi
 
@@ -94,10 +95,22 @@ if command_exists tailscale; then
 else
     start_install "Tailscale"
     curl -fsSL https://tailscale.com/install.sh | sh
-    sudo tailscale completion bash > .config/bash_completions/tailscale.completion
+
+    # Configurar completions
+    mkdir -p ~/.config/bash_completions
+    sudo tailscale completion bash > ~/.config/bash_completions/tailscale.completion 2>/dev/null || true
 
     end_install "Tailscale"
 fi
+
+# ╭──────────────────────────────────────────────╮
+# │ Inicialização do Tailscale                   │
+# ╰──────────────────────────────────────────────╯
+start_section "Iniciando Tailscale"
+
+sudo tailscale up $TS_TAGS
+
+end_section "Tailscale configurado"
 
 
 # ╭──────────────────────────────────────────────╮
@@ -109,7 +122,7 @@ if command_exists docker; then
 else
     start_install "Docker..."
     for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
-        sudo apt remove -y $pkg || true
+        sudo apt remove -y $pkg 2>/dev/null || true
     done
 
     sudo apt install -y ca-certificates curl
@@ -127,7 +140,8 @@ else
 
     sudo groupadd docker || true
     sudo usermod -aG docker "$USER"
-    sudo docker completion bash > .config/bash_completions/docker.completion
+
+    sudo docker completion bash > ~/.config/bash_completions/docker.completion 2>/dev/null || true
 
     end_install "Docker"
 fi
@@ -150,6 +164,11 @@ else
     chmod +x ~/bin/bw
     rm "$BW_ZIP"
 
+    # Adicionar ao PATH se necessário
+    if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+        echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+    fi
+
     end_install "Bitwarden CLI"
 fi
 
@@ -165,15 +184,6 @@ else
     sudo apt install jq -y
     end_install "jq"
 fi
-
-
-# ╭──────────────────────────────────────────────╮
-# │ Inicialização do Tailscale                   │
-# ╰──────────────────────────────────────────────╯
-start_section "Iniciando Tailscale"
-
-
-tailscale up --advertise-tags=tag:server
 
 
 # ╭──────────────────────────────────────────────╮
@@ -193,25 +203,22 @@ fi
 # │ Configuração do Git                          │
 # ╰──────────────────────────────────────────────╯
 start_section "Configurando Git"
-
+# Configurações básicas
 git config --global pull.rebase false
 git config --global merge.conflictstyle diff3
 git config --global branch.autosetupmerge always
 
-# Aliases serão gerenciados pelo Chezmoi
-cat << EOF > ~/.gitconfig.local
-[user]
-    name = "$GITHUB_USERNAME"
-    email = "{{ edimar.sa@efscode.com.br }}"
+# Aliases
+git config --global alias.lg "log --oneline --graph --decorate --all"
+git config --global alias.undo "reset --soft HEAD~1"
+git config --global alias.ac '!git add -A && git commit -m'
+git config --global alias.st status
+git config --global alias.co checkout
+git config --global alias.cm 'commit -m'
 
-[alias]
-    lg = log --oneline --graph --decorate --all
-    undo = reset --soft HEAD~1
-    ac = !git add -A && git commit -m
-    st = status
-    co = checkout
-    cm = commit -m
-EOF
+# Configura usuário
+git config --global user.name "$GITHUB_USERNAME"
+git config --global user.email "edimar.sa@efscode.com.br"  # Atualize se necessário
 
 end_section "Git configurado"
 
@@ -219,9 +226,14 @@ end_section "Git configurado"
 # ╭──────────────────────────────────────────────╮
 # │ Configuração do Bitwarden e SSH              │
 # ╰──────────────────────────────────────────────╯
+start_section "Configurando Bitwarden e SSH"
+
+# Login no Bitwarden
 bw logout 2>/dev/null || true
 
 bw login --apikey
+export BW_CLIENTID="$BW_CLIENTID"
+export BW_CLIENTSECRET="$BW_CLIENTSECRET"
 BW_SESSION=$(bw unlock --passwordenv BW_PASSWORD --raw)
 
 # Configura chave SSH
@@ -231,14 +243,43 @@ chmod 700 ~/.ssh
 # Extrai e configura as chaves SSH
 bw get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
     jq -r '.sshKey.privateKey' > ~/.ssh/deploy_key
+
+bw get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
+    jq -r '.sshKey.publicKey' > ~/.ssh/deploy_key.pub
+
+# Altera o nilve de permissão
 chmod 600 ~/.ssh/deploy_key
+chmod 644 ~/.ssh/deploy_key.pub
+
+# Adicionar ao ssh-agent
+eval "$(ssh-agent -s)" >/dev/null
+ssh-add ~/.ssh/deploy_key
 
 end_section "Bitwarden e SSH configurados"
 
 
 # ╭──────────────────────────────────────────────╮
+# │ Verificando e baixando arquivos de infra     │
+# ╰──────────────────────────────────────────────╯
+start_section "Configurando repositório de infra"
+
+if [[ ! -d ~/InfraProdServer ]]; then
+    git clone git@github.com:$GITHUB_USERNAME/InfraProdServer.git ~/InfraProdServer
+    echo "Repositório clonado com sucesso"
+else
+    echo "Repositório já existe"
+fi
+
+end_section "Repositório configurado"
+
+
+# ╭──────────────────────────────────────────────╮
 # │ Finalização                                  │
 # ╰──────────────────────────────────────────────╯
-start_section "🏁 Finalizado!"
-echo "🎉 Configuração concluída com sucesso!"
-echo "⚠️ Reinicie seu terminal ou execute 'source ~/.bashrc' para aplicar as mudanças"
+start_section "🏁 Configuração concluída!"
+echo "🎉 Tudo pronto!"
+echo "⚠️ Execute os seguintes passos:"
+echo "1. Reinicie o terminal: 'exec bash'"
+echo "2. Para usar Docker sem sudo, faça logout e login novamente"
+echo "3. Verifique o Tailscale: 'tailscale status'"
+echo "🔑 Chave SSH disponível em: ~/.ssh/deploy_key"
