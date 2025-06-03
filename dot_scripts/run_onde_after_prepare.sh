@@ -262,8 +262,6 @@ end_section "Bitwarden e SSH configurados"
 # ╭──────────────────────────────────────────────╮
 # │ Instalação do make                           │
 # ╰──────────────────────────────────────────────╯
-
-
 start_section "Verificando Make"
 if command_exists make; then
     end_section "Make já está instalado"
