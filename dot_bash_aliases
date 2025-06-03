@@ -1,0 +1,9 @@
+if [ -d ~/.config/bash_completions ]; then
+    for file in ~/.config/bash_completions/*; do
+        [ -f "$file" ] && . "$file"
+    done
+fi
+
+if [ -f ~/.config/.exports ]; then
+    . ~/.config/.exports
+fi

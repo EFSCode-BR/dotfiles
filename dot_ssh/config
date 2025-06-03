@@ -1,0 +1,5 @@
+# Conta efscode
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/deploy_key
