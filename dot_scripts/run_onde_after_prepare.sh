@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# ╭──────────────────────────────────────────────╮
+# │ Códigos de erro                              │
+# ╰──────────────────────────────────────────────╯
+ENV_VAR_DONT_EXISTS=91
 
 # ╭──────────────────────────────────────────────╮
 # │ Funções auxiliares                           │
@@ -29,54 +33,21 @@ end_section() {
     echo -e "-----------------------------------------------\n"
 }
 
-
-# ╭──────────────────────────────────────────────╮
-# │ Verificação de pré-requisitos                │
-# ╰──────────────────────────────────────────────╯
-start_section "Verificando variáveis de ambiente"
-
-REQUIRED_VARS=("GITHUB_USERNAME" "BW_CLIENTID" "BW_CLIENTSECRET" "BW_PASSWORD" "SERVER_TYPE" "TS_AUTH_KEY" "HOSTNAME")
-MISSING_VARS=()
-
-for var in "${REQUIRED_VARS[@]}"; do
-    if [[ -z "${!var:-}" ]]; then
-        MISSING_VARS+=("$var")
+check_env_var() {
+    local var_name="$1"
+    if [[ -z "${!var_name:-}" ]]; then
+        echo "❌ Variável de ambiente $var_name não definida."
+        exit "$ENV_VAR_DONT_EXISTS"
     fi
-done
+}
 
-if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
-    echo "❌ Variáveis necessárias não definidas:"
-    for var in "${MISSING_VARS[@]}"; do
-        echo "  - $var"
-    done
-    echo -e "\nDefina-as com:"
-    echo "export GITHUB_USERNAME=..."
-    echo "export BW_CLIENTID=..."
-    echo "export BW_CLIENTSECRET=..."
-    echo "export BW_PASSWORD=..."
-    echo "export SERVER_TYPE=(PROD|DEV)"
-    echo "export TS_AUTH_KEY=... (https://login.tailscale.com/admin/settings/keys)"
-    echo "export HOSTNAME=... (nome do servidor)"
-    exit 1
-fi
-
-SERVER_TYPE=${SERVER_TYPE^^}  # Converte para maiúsculas
-
-TS_TAGS="--auth-key=$TS_AUTH_KEY --hostname=$HOSTNAME"
-if [[ "$SERVER_TYPE" == "PROD" ]]; then
-    SSH_ITEM="prod_server_deply_key"
-    TS_TAGS="$TS_TAGS --advertise-tags=tag:prod,tag:infra"
-else
-    SSH_ITEM="dev_server_deply_key"
-    TS_TAGS="$TS_TAGS --advertise-tags=tag:dev,tag:infra"
-fi
 
 # ╭──────────────────────────────────────────────╮
 # │ Atualização do sistema                       │
 # ╰──────────────────────────────────────────────╯
 start_section "Atualizando sistema"
 touch ~/.hushlogin || true
-sudo apt-get update && sudo apt-get upgrade -y
+sudo apt update && sudo apt upgrade -y
 end_section "Sistema atualizado"
 
 
@@ -107,6 +78,20 @@ fi
 # │ Inicialização do Tailscale                   │
 # ╰──────────────────────────────────────────────╯
 start_section "Iniciando Tailscale"
+
+# Verifica apenas variáveis necessárias para o Tailscale
+check_env_var "TS_AUTH_KEY"
+check_env_var "HOSTNAME"
+check_env_var "SERVER_TYPE"
+
+SERVER_TYPE=${SERVER_TYPE^^}  # Converte para maiúsculas
+
+TS_TAGS="--auth-key=$TS_AUTH_KEY --hostname=$HOSTNAME"
+if [[ "$SERVER_TYPE" == "PROD" ]]; then
+    TS_TAGS="$TS_TAGS --advertise-tags=tag:prod,tag:infra"
+else
+    TS_TAGS="$TS_TAGS --advertise-tags=tag:dev,tag:infra"
+fi
 
 sudo tailscale up $TS_TAGS
 
@@ -203,6 +188,9 @@ fi
 # │ Configuração do Git                          │
 # ╰──────────────────────────────────────────────╯
 start_section "Configurando Git"
+# Verifica variável necessária para Git
+check_env_var "GITHUB_USERNAME"
+
 # Configurações básicas
 git config --global pull.rebase false
 git config --global merge.conflictstyle diff3
@@ -218,7 +206,7 @@ git config --global alias.cm 'commit -m'
 
 # Configura usuário
 git config --global user.name "$GITHUB_USERNAME"
-git config --global user.email "edimar.sa@efscode.com.br"  # Atualize se necessário
+git config --global user.email "edimar.sa@efscode.com.br"
 
 end_section "Git configurado"
 
@@ -227,6 +215,19 @@ end_section "Git configurado"
 # │ Configuração do Bitwarden e SSH              │
 # ╰──────────────────────────────────────────────╯
 start_section "Configurando Bitwarden e SSH"
+
+# Verifica variáveis necessárias para Bitwarden
+check_env_var "BW_CLIENTID"
+check_env_var "BW_CLIENTSECRET"
+check_env_var "BW_PASSWORD"
+check_env_var "SERVER_TYPE"
+
+# Define SSH_ITEM baseado no tipo de servidor
+if [[ "$SERVER_TYPE" == "PROD" ]]; then
+    SSH_ITEM="prod_server_deply_key"
+else
+    SSH_ITEM="dev_server_deply_key"
+fi
 
 # Login no Bitwarden
 BW_CMD=~/bin/bw
@@ -248,7 +249,7 @@ chmod 700 ~/.ssh
 "$BW_CMD" get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
     jq -r '.sshKey.publicKey' > ~/.ssh/deploy_key.pub
 
-# Altera o nilve de permissão
+# Altera o nível de permissão
 chmod 600 ~/.ssh/deploy_key
 chmod 644 ~/.ssh/deploy_key.pub
 
