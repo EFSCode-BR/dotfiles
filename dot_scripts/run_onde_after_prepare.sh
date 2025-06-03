@@ -260,6 +260,21 @@ end_section "Bitwarden e SSH configurados"
 
 
 # ╭──────────────────────────────────────────────╮
+# │ Instalação do make                           │
+# ╰──────────────────────────────────────────────╯
+
+
+start_section "Verificando Make"
+if command_exists make; then
+    end_section "Make já está instalado"
+else
+    start_install "Make"
+    sudo apt install make -y
+    end_install "Make"
+fi
+
+
+# ╭──────────────────────────────────────────────╮
 # │ Verificando e baixando arquivos de infra     │
 # ╰──────────────────────────────────────────────╯
 start_section "Configurando repositório de infra"
