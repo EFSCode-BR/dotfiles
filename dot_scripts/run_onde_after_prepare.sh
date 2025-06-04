@@ -159,6 +159,22 @@ fi
 
 
 # ╭──────────────────────────────────────────────╮
+# │ Instalação do nfs                            │
+# ╰──────────────────────────────────────────────╯
+start_section "Verificando nfs"
+if command_exists nfsstat; then
+    end_section "nfs já está instalado"
+else
+    start_install "nfs"
+    sudo apt install nfs-common -y
+    if [[ "$SERVER_TYPE" == "PROD" ]]; then
+        sudo apt install nfs-kernel-server -y
+    fi
+    end_install "nfs"
+fi
+
+
+# ╭──────────────────────────────────────────────╮
 # │ Instalação do jq                             │
 # ╰──────────────────────────────────────────────╯
 start_section "Verificando Jq"
