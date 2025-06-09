@@ -79,24 +79,29 @@ fi
 # ╰──────────────────────────────────────────────╯
 start_section "Iniciando Tailscale"
 
-# Verifica apenas variáveis necessárias para o Tailscale
-check_env_var "TS_AUTH_KEY"
-check_env_var "HOSTNAME"
-check_env_var "SERVER_TYPE"
-
-SERVER_TYPE=${SERVER_TYPE^^}  # Converte para maiúsculas
-
-TS_TAGS="--auth-key=$TS_AUTH_KEY --hostname=$HOSTNAME"
-if [[ "$SERVER_TYPE" == "PROD" ]]; then
-    TS_TAGS="$TS_TAGS --advertise-tags=tag:prod,tag:infra"
+# Verifica se o Tailscale já está logado
+if tailscale status >/dev/null 2>&1; then
+    echo "✅ Tailscale já está logado. Pulando conexão."
 else
-    TS_TAGS="$TS_TAGS --advertise-tags=tag:dev,tag:infra"
+    # Verifica variáveis necessárias para o Tailscale
+    check_env_var "TS_AUTH_KEY"
+    check_env_var "HOSTNAME"
+    check_env_var "SERVER_TYPE"
+
+    SERVER_TYPE=${SERVER_TYPE^^}  # Converte para maiúsculas
+
+    TS_TAGS="--auth-key=$TS_AUTH_KEY --hostname=$HOSTNAME"
+    if [[ "$SERVER_TYPE" == "PROD" ]]; then
+        TS_TAGS="$TS_TAGS --advertise-tags=tag:prod,tag:infra"
+    else
+        TS_TAGS="$TS_TAGS --advertise-tags=tag:dev,tag:infra"
+    fi
+
+    sudo tailscale up $TS_TAGS
+    echo "✅ Tailscale configurado e conectado."
 fi
 
-sudo tailscale up $TS_TAGS
-
-end_section "Tailscale configurado"
-
+end_section "Configuração do Tailscale concluída"
 
 # ╭──────────────────────────────────────────────╮
 # │ Instalação do Docker                         │
@@ -240,9 +245,9 @@ check_env_var "SERVER_TYPE"
 
 # Define SSH_ITEM baseado no tipo de servidor
 if [[ "$SERVER_TYPE" == "PROD" ]]; then
-    SSH_ITEM="prod_server_deply_key"
+    SSH_ITEM="prod_server_deploy_key"
 else
-    SSH_ITEM="dev_server_deply_key"
+    SSH_ITEM="dev_server_deploy_key"
 fi
 
 # Login no Bitwarden
