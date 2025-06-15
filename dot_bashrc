@@ -115,3 +115,8 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
+
+if [[ $- == *i* ]]; then
+    bind "set completion-ignore-case on"
+    bind "set show-all-if-ambiguous on"
+fi
