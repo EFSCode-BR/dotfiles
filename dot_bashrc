@@ -19,6 +19,10 @@ shopt -s histappend
 HISTSIZE=1000
 HISTFILESIZE=2000
 
+# Histórico filtrado ao pressionar ↑/↓
+bind '"\e[A": history-search-backward'   # Seta para cima
+bind '"\e[B": history-search-forward'    # Seta para baixo
+
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
