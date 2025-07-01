@@ -3,3 +3,9 @@ Host github.com
   HostName github.com
   User git
   IdentityFile ~/.ssh/deploy_key
+
+# Outro Alias
+Host github.com-efscode
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/deploy_key

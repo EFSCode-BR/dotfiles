@@ -83,22 +83,24 @@ start_section "Iniciando Tailscale"
 if tailscale status >/dev/null 2>&1; then
     echo "✅ Tailscale já está logado. Pulando conexão."
 else
-    # Verifica variáveis necessárias para o Tailscale
-    check_env_var "TS_AUTH_KEY"
-    check_env_var "HOSTNAME"
-    check_env_var "SERVER_TYPE"
+    if [ -z "$DEV_CONTAINER" != 1 ]; then
+        # Verifica variáveis necessárias para o Tailscale
+        check_env_var "TS_AUTH_KEY"
+        check_env_var "HOSTNAME"
+        check_env_var "SERVER_TYPE"
 
-    SERVER_TYPE=${SERVER_TYPE^^}  # Converte para maiúsculas
+        SERVER_TYPE=${SERVER_TYPE^^}  # Converte para maiúsculas
 
-    TS_TAGS="--auth-key=$TS_AUTH_KEY --hostname=$HOSTNAME"
-    if [[ "$SERVER_TYPE" == "PROD" ]]; then
-        TS_TAGS="$TS_TAGS --advertise-tags=tag:prod,tag:infra"
-    else
-        TS_TAGS="$TS_TAGS --advertise-tags=tag:dev,tag:infra"
+        TS_TAGS="--auth-key=$TS_AUTH_KEY --hostname=$HOSTNAME"
+        if [[ "$SERVER_TYPE" == "PROD" ]]; then
+            TS_TAGS="$TS_TAGS --advertise-tags=tag:prod,tag:infra"
+        else
+            TS_TAGS="$TS_TAGS --advertise-tags=tag:dev,tag:infra"
+        fi
+
+        sudo tailscale up $TS_TAGS
+        echo "✅ Tailscale configurado e conectado."
     fi
-
-    sudo tailscale up $TS_TAGS
-    echo "✅ Tailscale configurado e conectado."
 fi
 
 end_section "Configuração do Tailscale concluída"

@@ -1,0 +1,243 @@
+{
+  // GENERAL SETTINGS
+  "chat.commandCenter.enabled": false,
+  "workbench.editor.closeOnFileDelete": true,
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.colorTheme": "Catppuccin Macchiato",
+  "workbench.settings.editor": "json",
+  "workbench.tree.expandMode": "doubleClick",
+  "workbench.startupEditor": "readme",
+  "database-client.autoSync": true,
+  "redhat.telemetry.enabled": false,
+  // WINDOW SETTINGS
+  "window.confirmBeforeClose": "always",
+  "window.restoreWindows": "none",
+  // EXPLORER SETTINGS
+  "explorer.autoReveal": false,
+  "explorer.compactFolders": false,
+  "explorer.confirmDragAndDrop": false,
+  "explorer.incrementalNaming": "smart",
+  // SEARCH SETTINGS
+  "search.collapseResults": "alwaysCollapse",
+  "search.exclude": {
+    ".DS_Store": true,
+    ".env": true,
+    ".git": true,
+    ".hg": true,
+    ".svn": true,
+    ".venv": true,
+    ".vscode": true,
+    ".vscode-server": true,
+    "*.code-search": true,
+    "bower_components": true,
+    "build": true,
+    "dist": true,
+    "node_modules": true
+  },
+  "search.quickAccess.preserveInput": true,
+  "search.searchEditor.focusResultsOnSearch": true,
+  "search.showLineNumbers": true,
+  // TERMINAL SETTINGS
+  "terminal.integrated.confirmOnExit": "hasChildProcesses",
+  "terminal.integrated.copyOnSelection": true,
+  "terminal.integrated.cursorBlinking": true,
+  "terminal.integrated.defaultProfile.linux": "zsh",
+  "terminal.integrated.defaultProfile.windows": "Git Bash",
+  "terminal.integrated.profiles.windows": {
+    "Command Prompt": {
+      "args": [],
+      "icon": "terminal-cmd",
+      "path": [
+        "${env:windir}\\Sysnative\\cmd.exe",
+        "${env:windir}\\System32\\cmd.exe"
+      ]
+    },
+    "PowerShell": {
+      "icon": "terminal-powershell",
+      "source": "PowerShell"
+    }
+  },
+  // REMOTE / TUNNEL SETTINGS
+  "remote.autoForwardPortsSource": "hybrid",
+  "remote.tunnels.access.preventSleep": true,
+  // EXTENSIONS
+  "extensions.autoCheckUpdates": true,
+  "extensions.autoUpdate": "onlyEnabledExtensions",
+  "extensions.ignoreRecommendations": true,
+  "extensions.verifySignature": true,
+  // TODO TREE
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "FUTURE",
+    "TEST",
+    "HACK",
+    "DEBUG",
+    "REVIEW"
+  ],
+  "todo-tree.highlights.customHighlight": {
+    "BUG": {
+      "background": "#E6F7FF",
+      "foreground": "#0000FF",
+      "icon": "bug",
+      "opacity": 70
+    },
+    "FIXME": {
+      "background": "#FFF5F5",
+      "foreground": "#FF4500",
+      "icon": "tools",
+      "opacity": 90
+    },
+    "FUTURE": {
+      "background": "#F0F8FF",
+      "foreground": "#1E90FF",
+      "icon": "calendar",
+      "opacity": 75
+    },
+    "HACK": {
+      "background": "#F3E5F5",
+      "foreground": "#800080",
+      "icon": "bug",
+      "opacity": 75
+    },
+    "REVIEW": {
+      "background": "#FFFAF0",
+      "foreground": "#8B4513",
+      "icon": "eye",
+      "opacity": 80
+    },
+    "TEST": {
+      "background": "#E0F2F1",
+      "foreground": "#228B22",
+      "icon": "beaker",
+      "opacity": 70
+    },
+    "TODO": {
+      "background": "#000000",
+      "foreground": "#FFD700",
+      "icon": "checklist",
+      "opacity": 80
+    }
+  },
+  "todo-tree.highlights.defaultHighlight": {
+    "borderRadius": "4px",
+    "fontStyle": "italic",
+    "gutterIcon": true,
+    "textDecoration": "underline",
+    "type": "tag"
+  },
+  "todo-tree.regex.regex": "(//|#|<!--|;|/\\*|^|^[ \\t]*(-|\\d+.))\\s*($TAGS):",
+  "files.exclude": {
+    ".git": true,
+    ".svn": true,
+    ".hg": true,
+    ".DS_Store": true,
+    // "*.env*": true,
+    "credentials.json": true,
+    "Thumbs.db": true
+  },
+  // LIVESHARE
+  "liveshare.allowGuestDebugControl": true,
+  // GIT
+  "diffEditor.hideUnchangedRegions.enabled": true,
+  "git.autofetch": true,
+  // "git.openRepositoryInParentFolders": "never",
+  // CODEIUM
+  "codeium.enableConfig": {
+    "*": true,
+    "json": true,
+    "markdown": true,
+    "nginx": true,
+    "properties": true,
+    "yaml": true,
+    "ignore": true
+  },
+  // LANGUAGE FORMATTERS
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // "editor.autoClosingBrackets": "always",
+  // "editor.autoClosingComments": "always",
+  // "editor.autoClosingDelete": "always",
+  // "editor.autoClosingOvertype": "always",
+  // "editor.autoClosingQuotes": "always",
+  "editor.minimap.enabled": false,
+  "editor.tabSize": 2,
+  "[markdown]": {
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one"
+  },
+  "[sql]": {
+    "editor.defaultFormatter": "inferrinizzard.prettier-sql-vscode"
+  },
+  "[shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[dotenv]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[dockerfile]": {
+    "editor.defaultFormatter": "ms-azuretools.vscode-docker"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "ruff.importStrategy": "useBundled",
+  "ruff.lineLength": 120,
+  "ruff.showSyntaxErrors": true,
+  "ruff.lint.preview": true,
+  "ruff.configuration": "/home/vscode/.vscode-server/data/Machine/ruff.toml",
+  "ruff.lint.select": [
+    "ALL"
+  ],
+  "ruff.lint.ignore": [
+    "ANN401",
+    "CPY",
+    "D100",
+    "D101",
+    "D102",
+    "D105",
+    "D106",
+    "D104",
+    "FA100",
+    "FBT",
+    "PGH",
+    "TC002",
+    "TID252"
+  ],
+  "ruff.exclude": [
+    "node_modules/",
+    "venv/",
+    ".venv/",
+    "dist/",
+    "build/",
+    "migrations/",
+    "static/",
+    "staticfiles/",
+    "staticfiles_root/",
+    "static_root/",
+    "media/",
+    "mediafiles/",
+    "mediafiles_root/",
+    "media_root/",
+    "locale/",
+    "localefiles/",
+    "localefiles_root/",
+    "locale_root/",
+    "templates/",
+    "templatesfiles/",
+    "templatesfiles_root/",
+    "templates_root/"
+  ],
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.importFormat": "relative",
+  "python.analysis.typeCheckingMode": "basic",
+  // AUTODOCSTRING
+  "autoDocstring.docstringFormat": "google",
+  "autoDocstring.includeName": true
+}
