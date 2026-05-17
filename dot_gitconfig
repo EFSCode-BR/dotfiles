@@ -1,0 +1,46 @@
+[color]
+	ui = auto
+[status]
+	showUntrackedFiles = all
+[diff]
+	compactionHeuristic = true
+	mnemonicPrefix = true
+	colorMoved = zebra
+[blame]
+	ignoreWhitespace = auto
+[alias]
+	lg = log --oneline --graph --decorate --all
+	hist = log --graph --pretty=format:'%Cred%h%Creset - %C(bold blue)<%an>%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)' --abbrev=8
+	recent = for-each-ref --sort=committerdate refs/heads/ --format='%(color:yellow)%(refname:short)%(color:reset) (%(color:green)%(committerdate:relative)%(color:reset))'
+	unstage = reset HEAD --
+	amend = commit --amend --no-edit
+	undo = reset --soft HEAD~1
+	dev = switch development
+	cp = cherry-pick --no-commit
+	df = diff
+	br = branch
+	sw = switch
+	co = checkout
+	st = status -s
+	cm = commit -m
+	ms = merge --squash
+	ac = !git add -A && git commit -m
+	pod = pull origin development
+	get = "!f() { git fetch --all && git checkout -t origin/$1; }; f"
+	clear = !git branch --merged | grep -E -v '(^\\*|main|master|development)' | xargs git branch -d
+	filelog = "!f() { git log --pretty=oneline --abbrev-commit -- $1; }; f"
+	bl = blame --color-by-age --date=short --abbrev=4
+	aliases = config --get-regexp alias
+	discard-all = !git reset --hard HEAD && git clean -fd
+	apply-env = "!f() { git stash apply $(git stash list | grep 'envs_dev' | cut -d: -f1 | head -n 1); }; f"
+	unapply-env = "!f() { git restore $(git show --pretty='' --name-only $(git stash list | grep 'envs_dev' | cut -d: -f1 | head -n 1)); }; f"
+[fetch]
+	prune = true
+[rerere]
+	enabled = true
+[pull]
+	rebase = false
+[merge]
+	conflictstyle = diff3
+[branch]
+	autosetupmerge = always
