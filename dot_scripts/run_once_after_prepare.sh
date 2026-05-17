@@ -480,7 +480,7 @@ if [[ -n "$BW_SESSION" ]]; then
     mkdir -p "$HOME"/.ssh && chmod 700 "$HOME"/.ssh
 
     log_info "Buscando chaves SSH do Bitwarden..."
-    SSH_KEYS=("prod_server_deploy_key")
+    SSH_KEYS=("deploy_key" "deploy_key.pub")
     KEYS_FOUND=0
     KEYS_FAILED=0
 
@@ -508,7 +508,7 @@ if [[ -n "$BW_SESSION" ]]; then
 
     git config --global user.name "$GITHUB_USERNAME"
 
-    GIT_EMAIL=$("$BW_BIN" get username "Git Hub" 2>/dev/null || echo "")
+    GIT_EMAIL=$("$BW_BIN" get username "GitHub" 2>/dev/null || echo "")
     if [[ -n "$GIT_EMAIL" ]]; then
         git config --global user.email "$GIT_EMAIL"
         log_success "Git user.email configurado: $GIT_EMAIL"
