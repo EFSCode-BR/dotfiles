@@ -1,0 +1,52 @@
+#! /bin/zsh
+# shellcheck disable=SC1071
+
+export ZSH="$HOME/.oh-my-zsh"
+
+ZSH_THEME="random"
+# ZSH_THEME_RANDOM_CANDIDATES=( "jonathan" "half-life" "mira" "fino" "jonathan" "fino-time" )
+CASE_SENSITIVE="true"
+HYPHEN_INSENSITIVE="true"
+
+zstyle ':omz:update' mode reminder
+zstyle ':omz:update' frequency 15
+
+COMPLETION_WAITING_DOTS="true"
+HIST_STAMPS="yyyy-mm-dd"
+
+plugins=(git mvn ubuntu fzf zsh-autosuggestions zsh-syntax-highlighting)
+
+command -v chezmoi >/dev/null && source <(chezmoi completion zsh)
+command -v bw >/dev/null && source <(bw completion --shell zsh)
+
+source $ZSH/oh-my-zsh.sh
+
+if [ -f "$HOME/.config/.exports" ]; then
+    source "$HOME/.config/.exports"
+fi
+
+gerar_relatorio() {
+  local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  local base=$(git config branch."$current_branch".vscode-merge-base || echo "origin/main")
+  local fork_point=$(git merge-base "$base" "$current_branch")
+  local temp_file=$(mktemp /tmp/"$current_branch"_git_report_XXXXXX.txt)
+  local ignore_pattern="node_modules/|target/|build/|dist/|\.gradle/|\.settings/|\.classpath|\.project|ios/Pods/|android/app/build/|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|gradlew|gradlew\.bat"
+
+  {
+    echo "--------------------------------------------------"
+    echo "### RELATÓRIO: $current_branch (Base: $base)"
+    echo "### CAMINHO: $temp_file"
+    echo "--------------------------------------------------"
+    
+    git log "$fork_point..HEAD" --name-only --pretty=format:"%n[COMMIT %h] %s%n%b%nArquivos:" | grep -Ev "$ignore_pattern"
+  } > "$temp_file"
+
+  ${EDITOR:-less} "$temp_file"
+}
+
+command -v ng >/dev/null && source <(ng completion script)
+command -v tailscale >/dev/null && source <(tailscale completion zsh)
+command -v uv >/dev/null && source <(uv generate-shell-completion zsh)
+command -v docker >/dev/null && source <(docker completion zsh)
+
+command -v keychain > /dev/null && eval $(keychain --eval --quiet --agents ssh ssh_github dev_server efscode_github iap_1000)
