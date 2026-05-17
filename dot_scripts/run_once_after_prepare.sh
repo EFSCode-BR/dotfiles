@@ -1,11 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
-
-# ╭──────────────────────────────────────────────╮
-# │ Códigos de erro                              │
-# ╰──────────────────────────────────────────────╯
-ENV_VAR_DONT_EXISTS=91
+set -e
 
 # ╭──────────────────────────────────────────────╮
 # │ Funções auxiliares                           │
@@ -14,310 +9,568 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-start_section() {
-    echo -e "\n╭──────────────────────────────────────────────╮"
-    echo "│ $1"
+print_section() {
+    echo ""
+    echo "╭──────────────────────────────────────────────╮"
+    printf "│ %-44s │\n" "$1"
     echo "╰──────────────────────────────────────────────╯"
 }
 
-start_install() {
-    echo "📦 Instalando $1..."
+log_install() {
+    log_info "📦  Instalando $1"
 }
 
-end_install() {
-    echo "$1 instalado com sucesso."
+log_info() {
+    echo "ℹ️  [$(date '+%H:%M:%S')] $1"
 }
 
-end_section() {
-    echo "✅ $1"
-    echo -e "-----------------------------------------------\n"
+log_success() {
+    echo "✅ [$(date '+%H:%M:%S')] $1"
 }
 
-check_env_var() {
-    local var_name="$1"
-    if [[ -z "${!var_name:-}" ]]; then
-        echo "❌ Variável de ambiente $var_name não definida."
-        exit "$ENV_VAR_DONT_EXISTS"
+log_warning() {
+    echo "⚠️  [$(date '+%H:%M:%S')] $1"
+}
+
+log_error() {
+    echo "❌ [$(date '+%H:%M:%S')] $1"
+}
+
+# ╭──────────────────────────────────────────────╮
+# │ Início e Validações de Sistema               │
+# ╰──────────────────────────────────────────────╯
+log_info "🚀 [+] Iniciando script de preparação..."
+log_info "Data/hora: $(date '+%Y-%m-%d %H:%M:%S')"
+log_info "Usuário: $USER"
+log_info "Sistema: $(uname -s) $(uname -r)"
+
+if [[ -z "$GITHUB_USERNAME" ]]; then
+    GITHUB_USERNAME="edimar.sa"
+    log_info "Usando GITHUB_USERNAME padrão: $GITHUB_USERNAME"
+fi
+
+if ! command_exists apt; then
+    log_error "Gerenciador de pacotes 'apt' não encontrado. Este script requer Debian/Ubuntu."
+    exit 1
+fi
+
+if ! sudo -v 2>/dev/null; then
+    log_info "Este script requer privilégios de sudo. Solicitando acesso..."
+    if ! sudo -v; then
+        log_error "Falha ao validar sudo. Finalizando."
+        exit 1
     fi
-}
+fi
+log_success "Validações de sistema concluídas"
 
 
 # ╭──────────────────────────────────────────────╮
 # │ Atualização do sistema                       │
 # ╰──────────────────────────────────────────────╯
-start_section "Atualizando sistema"
-touch ~/.hushlogin || true
-sudo apt update && sudo apt upgrade -y
-end_section "Sistema atualizado"
+print_section "Atualizando sistema"
+log_info "Criando arquivo .hushlogin para suprimir mensagens de login..."
+touch "$HOME"/.hushlogin
 
+log_info "Atualizando lista de pacotes..."
+sudo apt update
+
+log_info "Atualizando pacotes instalados..."
+sudo apt upgrade -y
+
+log_info "Instalando utilitários básicos..."
+sudo apt install -y bash-completion curl unzip
+log_success "Sistema atualizado e utilitários instalados"
 
 # ╭──────────────────────────────────────────────╮
-# │ Início                                       │
+# │ Instalação de Ferramentas                    │
 # ╰──────────────────────────────────────────────╯
-echo "🚀 [+] Iniciando script de preparação..."
+for pkg in fzf zsh neovim jq git keychain; do
+    print_section "Processando: $pkg"
+    if command_exists "$pkg"; then
+        log_info "$pkg já está instalado. Verificando atualizações..."
 
+        case "$pkg" in
+        zsh)
+            CURRENT_VERSION=$(zsh --version | awk '{print $2}')
+            log_info "Versão atual do Zsh: $CURRENT_VERSION"
+            sudo apt install --only-upgrade -y zsh
+            NEW_VERSION=$(zsh --version | awk '{print $2}')
+            if [[ "$CURRENT_VERSION" != "$NEW_VERSION" ]]; then
+                log_success "Zsh atualizado: $CURRENT_VERSION → $NEW_VERSION"
+            else
+                log_success "Zsh já está na versão mais recente"
+            fi
+            ;;
+        neovim)
+            CURRENT_VERSION=$(nvim --version | head -n1 | awk '{print $2}')
+            log_info "Versão atual do Neovim: $CURRENT_VERSION"
+            sudo apt install --only-upgrade -y neovim
+            NEW_VERSION=$(nvim --version | head -n1 | awk '{print $2}')
+            if [[ "$CURRENT_VERSION" != "$NEW_VERSION" ]]; then
+                log_success "Neovim atualizado: $CURRENT_VERSION → $NEW_VERSION"
+            else
+                log_success "Neovim já está na versão mais recente"
+            fi
+            ;;
+        jq)
+            CURRENT_VERSION=$(jq --version 2>&1 | grep -oP '\d+\.\d+')
+            log_info "Versão atual do jq: $CURRENT_VERSION"
+            sudo apt install --only-upgrade -y jq
+            log_success "jq verificado/atualizado"
+            ;;
+        git)
+            CURRENT_VERSION=$(git --version | awk '{print $3}')
+            log_info "Versão atual do Git: $CURRENT_VERSION"
+            sudo apt install --only-upgrade -y git
+            NEW_VERSION=$(git --version | awk '{print $3}')
+            if [[ "$CURRENT_VERSION" != "$NEW_VERSION" ]]; then
+                log_success "Git atualizado: $CURRENT_VERSION → $NEW_VERSION"
+            else
+                log_success "Git já está na versão mais recente"
+            fi
+            ;;
+        keychain)
+            CURRENT_VERSION=$(keychain --version 2>/dev/null | head -n1 || echo "desconhecida")
+            log_info "Versão atual do keychain: $CURRENT_VERSION"
+            sudo apt install --only-upgrade -y keychain
+            log_success "keychain verificado/atualizado"
+            ;;
+        fzf)
+            CURRENT_VERSION=$(fzf --version 2>/dev/null || echo "desconhecida")
+            log_info "Versão atual do fzf: $CURRENT_VERSION"
+            sudo apt install --only-upgrade -y fzf
+            log_success "fzf verificado/atualizado"
+            ;;
+        esac
+    else
+        log_install "$pkg..."
+        sudo apt install -y "$pkg"
+        log_success "$pkg instalado com sucesso"
+    fi
+done
 
 # ╭──────────────────────────────────────────────╮
-# │ Instalação do Tailscale                      │
+# │ Configurar Zsh como Shell Padrão             │
 # ╰──────────────────────────────────────────────╯
-start_section "Verificando Tailscale"
-if command_exists tailscale; then
-    end_section "Tailscale já está instalado"
+print_section "Configurando Zsh"
+
+CURRENT_SHELL=$(basename "$SHELL")
+log_info "Shell atual: $CURRENT_SHELL"
+
+if [[ "$CURRENT_SHELL" != "zsh" ]]; then
+    log_info "Configurando Zsh como shell padrão..."
+
+    ZSH_PATH=$(which zsh)
+    log_info "Caminho do Zsh: $ZSH_PATH"
+
+    if ! grep -q "$ZSH_PATH" /etc/shells; then
+        log_info "Adicionando Zsh ao /etc/shells..."
+        echo "$ZSH_PATH" | sudo tee -a /etc/shells
+    fi
+
+    log_info "Alterando shell padrão para Zsh..."
+    sudo chsh -s "$ZSH_PATH" "$USER"
+    log_success "Zsh configurado como shell padrão (requer logout/login)"
 else
-    start_install "Tailscale"
-    curl -fsSL https://tailscale.com/install.sh | sh
-
-    # Configurar completions
-    mkdir -p ~/.config/bash_completions
-    sudo tailscale completion bash > ~/.config/bash_completions/tailscale.completion 2>/dev/null || true
-
-    end_install "Tailscale"
+    log_success "Zsh já é o shell padrão"
 fi
 
-# ╭──────────────────────────────────────────────╮
-# │ Inicialização do Tailscale                   │
-# ╰──────────────────────────────────────────────╯
-start_section "Iniciando Tailscale"
+# Instalar/Atualizar Oh My Zsh
+OH_MY_ZSH_DIR="$HOME/.oh-my-zsh"
+if [[ -d "$OH_MY_ZSH_DIR" ]]; then
+    log_info "Oh My Zsh já está instalado"
+    log_info "Verificando atualizações do Oh My Zsh..."
 
-# Verifica se o Tailscale já está logado
-if tailscale status >/dev/null 2>&1; then
-    echo "✅ Tailscale já está logado. Pulando conexão."
+    cd "$OH_MY_ZSH_DIR"
+    BEFORE_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+    git pull origin master 2>/dev/null || log_warning "Não foi possível atualizar Oh My Zsh"
+
+    AFTER_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+    if [[ "$BEFORE_COMMIT" != "$AFTER_COMMIT" && "$BEFORE_COMMIT" != "unknown" ]]; then
+        log_success "Oh My Zsh atualizado"
+    else
+        log_success "Oh My Zsh já está na versão mais recente"
+    fi
+
+    cd - >/dev/null
 else
-    if [ -z "$DEV_CONTAINER" != 1 ]; then
-        # Verifica variáveis necessárias para o Tailscale
-        check_env_var "TS_AUTH_KEY"
-        check_env_var "HOSTNAME"
-        check_env_var "SERVER_TYPE"
+    log_install "Oh My Zsh..."
 
-        SERVER_TYPE=${SERVER_TYPE^^}  # Converte para maiúsculas
+    if [[ -f "$HOME/.zshrc" ]]; then
+        log_info "Fazendo backup de .zshrc existente..."
+        cp "$HOME/.zshrc" "$HOME/.zshrc.backup.$(date '+%Y%m%d%H%M%S')"
+    fi
 
-        TS_TAGS="--auth-key=$TS_AUTH_KEY --hostname=$HOSTNAME"
-        if [[ "$SERVER_TYPE" == "PROD" ]]; then
-            TS_TAGS="$TS_TAGS --advertise-tags=tag:prod,tag:infra"
-        else
-            TS_TAGS="$TS_TAGS --advertise-tags=tag:dev,tag:infra"
-        fi
+    log_info "Baixando e instalando Oh My Zsh..."
+    RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
-        sudo tailscale up $TS_TAGS
-        echo "✅ Tailscale configurado e conectado."
+    if [[ -d "$OH_MY_ZSH_DIR" ]]; then
+        log_success "Oh My Zsh instalado com sucesso"
+    else
+        log_warning "Falha ao instalar Oh My Zsh"
     fi
 fi
 
-end_section "Configuração do Tailscale concluída"
-
 # ╭──────────────────────────────────────────────╮
-# │ Instalação do Docker                         │
+# │ Instalar/Atualizar Docker                    │
 # ╰──────────────────────────────────────────────╯
-start_section "Verificando Docker"
+print_section "Processando: Docker"
 if command_exists docker; then
-    end_section "Docker já está instalado"
+    log_info "Docker já está instalado"
+    CURRENT_VERSION=$(docker --version | awk '{print $3}' | tr -d ',')
+    log_info "Versão atual do Docker: $CURRENT_VERSION"
+
+    log_info "Verificando atualizações do Docker..."
+    sudo apt update
+    sudo apt install --only-upgrade -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || true
+
+    NEW_VERSION=$(docker --version | awk '{print $3}' | tr -d ',')
+    if [[ "$CURRENT_VERSION" != "$NEW_VERSION" ]]; then
+        log_success "Docker atualizado: $CURRENT_VERSION → $NEW_VERSION"
+    else
+        log_success "Docker já está na versão mais recente"
+    fi
 else
-    start_install "Docker..."
+    log_install "Docker..."
+
+    log_info "Removendo pacotes conflitantes..."
     for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
         sudo apt remove -y $pkg 2>/dev/null || true
     done
 
-    sudo apt install -y ca-certificates curl
+    log_install "certificados CA..."
+    sudo apt install -y ca-certificates
+
+    log_info "Configurando repositório Docker"
     sudo install -m 0755 -d /etc/apt/keyrings
     sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    # shellcheck source=/dev/null
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" |
+        sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
 
+    log_info "Atualizando lista de pacotes..."
     sudo apt update
+
+    log_install "componentes Docker..."
     sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    sudo groupadd docker || true
+    log_info "Configurando grupo docker..."
+    sudo groupadd docker 2>/dev/null || true
     sudo usermod -aG docker "$USER"
 
-    sudo docker completion bash > ~/.config/bash_completions/docker.completion 2>/dev/null || true
-
-    end_install "Docker"
+    INSTALLED_VERSION=$(docker --version | awk '{print $3}' | tr -d ',')
+    log_success "Docker instalado com sucesso: $INSTALLED_VERSION"
+    log_warning "Você precisará fazer logout/login para usar Docker sem sudo"
 fi
 
-
 # ╭──────────────────────────────────────────────╮
-# │ Instalação do Bitwarden CLI                  │
+# │ Instalar Bitwarden CLI                       │
 # ╰──────────────────────────────────────────────╯
-start_section "Verificando Bitwarden CLI"
+print_section "Processando: Bitwarden CLI"
+BW_BIN=/usr/local/bin/bw
+
 if command_exists bw; then
-    end_section "Bitwarden CLI já está instalado"
+    log_info "Bitwarden CLI já está instalado"
+    CURRENT_VERSION=$("$BW_BIN" --version 2>/dev/null || echo "desconhecida")
+    log_info "Versão atual: $CURRENT_VERSION"
+
+    log_info "Verificando atualizações do Bitwarden CLI..."
+    UPDATE_OUTPUT=$("$BW_BIN" update 2>&1 || true)
+
+    if echo "$UPDATE_OUTPUT" | grep -q "Updated"; then
+        NEW_VERSION=$("$BW_BIN" --version)
+        log_success "Bitwarden CLI atualizado: $CURRENT_VERSION → $NEW_VERSION"
+    elif echo "$UPDATE_OUTPUT" | grep -q "up to date"; then
+        log_success "Bitwarden CLI já está na versão mais recente"
+    else
+        log_info "Resultado da verificação: $UPDATE_OUTPUT"
+    fi
 else
-    start_install "Bitwarden CLI"
+    log_install "Bitwarden CLI..."
+    sudo mkdir -p /usr/local/bin
 
-    mkdir -p ~/bin
+    log_info "Baixando Bitwarden CLI..."
     BW_ZIP=$(mktemp)
-
     curl -fsSL "https://bitwarden.com/download/?app=cli&platform=linux" -o "$BW_ZIP"
-    unzip -j "$BW_ZIP" bw -d ~/bin
-    chmod +x ~/bin/bw
+
+    log_info "Extraindo e instalando..."
+    sudo unzip -j "$BW_ZIP" bw -d /usr/local/bin
+    sudo chmod +x "$BW_BIN"
     rm "$BW_ZIP"
 
-    # Adicionar ao PATH se necessário
-    if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
-        echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+    if [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
+        log_info "Adicionando /usr/local/bin ao PATH..."
+        echo 'export PATH="/usr/local/bin:$PATH"' >>"$HOME/.bashrc"
     fi
 
-    end_install "Bitwarden CLI"
+    INSTALLED_VERSION=$("$BW_BIN" --version)
+    log_success "Bitwarden CLI instalado com sucesso: $INSTALLED_VERSION"
 fi
 
-
 # ╭──────────────────────────────────────────────╮
-# │ Instalação do nfs                            │
+# │ Acesso Bitwarden e SSH                       │
 # ╰──────────────────────────────────────────────╯
-start_section "Verificando nfs"
-if command_exists nfsstat; then
-    end_section "nfs já está instalado"
-else
-    start_install "nfs"
-    sudo apt install nfs-common -y
-    if [[ "$SERVER_TYPE" == "PROD" ]]; then
-        sudo apt install nfs-kernel-server -y
+print_section "Configuração Bitwarden e SSH"
+
+get_ssh_key() {
+    local key_name="$1"
+    local key_path="$HOME/.ssh/$key_name"
+
+    log_info "Processando chave: $key_name"
+
+    if [[ -f "$key_path" ]]; then
+        log_info "Arquivo $key_path encontrado. Validando..."
+        if ssh-keygen -l -f "$key_path" >/dev/null 2>&1; then
+            log_success "Chave $key_name já existe e é válida"
+            return 0
+        else
+            log_warning "Chave $key_name existe mas é inválida. Removendo..."
+            rm -f "$key_path" "$key_path.pub" || {
+                log_error "Falha ao remover chave inválida"
+                return 1
+            }
+        fi
     fi
-    end_install "nfs"
-fi
 
+    log_info "🔑 Buscando chave no Bitwarden: $key_name"
 
-# ╭──────────────────────────────────────────────╮
-# │ Instalação do jq                             │
-# ╰──────────────────────────────────────────────╯
-start_section "Verificando Jq"
-if command_exists jq; then
-    end_section "jq já está instalado"
+    local raw_item
+    raw_item=$("$BW_BIN" get item "$key_name" --raw 2>&1)
+    local bw_exit_code=$?
+
+    if [[ $bw_exit_code -ne 0 ]]; then
+        log_warning "Erro ao buscar '$key_name' no Bitwarden (exit code: $bw_exit_code)"
+        log_info "Resposta do bw: ${raw_item:0:100}"
+        return 1
+    fi
+
+    if [[ -z "$raw_item" || "$raw_item" == "null" ]]; then
+        log_warning "Chave $key_name não encontrada no Bitwarden (resposta vazia)"
+        return 1
+    fi
+
+    log_info "Item encontrado. Extraindo chaves..."
+
+    if echo "$raw_item" | jq -e '.sshKey.privateKey' >/dev/null 2>&1; then
+        log_info "Usando formato .sshKey (tipo SSH Key nativo)"
+        echo "$raw_item" | jq -r '.sshKey.privateKey' >"$key_path" || {
+            log_error "Falha ao extrair chave privada"
+            return 1
+        }
+
+        if echo "$raw_item" | jq -e '.sshKey.publicKey' >/dev/null 2>&1; then
+            echo "$raw_item" | jq -r '.sshKey.publicKey' >"$key_path.pub" || {
+                log_warning "Falha ao extrair chave pública"
+            }
+        fi
+    else
+        log_info "Usando formato alternativo (notes + fields)"
+
+        local notes_content
+        notes_content=$(echo "$raw_item" | jq -r '.notes // empty')
+
+        if [[ -z "$notes_content" || "$notes_content" == "null" ]]; then
+            log_error "Chave privada não encontrada em .notes"
+            return 1
+        fi
+
+        echo "$notes_content" >"$key_path" || {
+            log_error "Falha ao salvar chave privada"
+            return 1
+        }
+
+        local pub_key
+        pub_key=$(echo "$raw_item" | jq -r '.fields[]? | select(.name == "public_key" or .name == "publicKey" or .name == "public") | .value' 2>/dev/null | head -n1)
+
+        if [[ -n "$pub_key" && "$pub_key" != "null" ]]; then
+            log_info "Chave pública encontrada em campo customizado"
+            echo "$pub_key" >"$key_path.pub"
+        else
+            pub_key=$(echo "$raw_item" | jq -r '.fields[0].value // empty' 2>/dev/null)
+            if [[ -n "$pub_key" && "$pub_key" != "null" ]]; then
+                log_info "Chave pública encontrada no primeiro campo"
+                echo "$pub_key" >"$key_path.pub"
+            else
+                log_warning "Chave pública não encontrada nos campos"
+            fi
+        fi
+    fi
+
+    if [[ ! -f "$key_path" ]]; then
+        log_error "Arquivo de chave não foi criado: $key_path"
+        return 1
+    fi
+
+    if [[ ! -s "$key_path" ]]; then
+        log_error "Arquivo de chave está vazio: $key_path"
+        rm -f "$key_path" "$key_path.pub"
+        return 1
+    fi
+
+    log_info "Configurando permissões..."
+    chmod 600 "$key_path" || {
+        log_error "Falha ao configurar permissões da chave privada"
+        return 1
+    }
+
+    if [[ -f "$key_path.pub" ]]; then
+        chmod 644 "$key_path.pub" || {
+            log_warning "Falha ao configurar permissões da chave pública"
+        }
+    fi
+
+    # Validar formato da chave
+    log_info "Validando formato da chave..."
+    if ! ssh-keygen -l -f "$key_path" >/dev/null 2>&1; then
+        log_error "Chave $key_name tem formato inválido"
+        log_info "Primeira linha: $(head -n1 "$key_path" | cut -c1-60)..."
+        log_info "Tamanho do arquivo: $(wc -c <"$key_path") bytes"
+        return 1
+    fi
+
+    log_success "Chave $key_name configurada com sucesso"
+    return 0
+}
+
+if [[ ! (-n "$BW_SESSION") ]]; then
+    log_info "Verificando status do Bitwarden..."
+    BW_STATUS=$("$BW_BIN" status | jq -r '.status')
+    log_info "Status atual: $BW_STATUS"
+    BW_SESSION=""
+
+    if [[ "$BW_STATUS" == "unauthenticated" || "$BW_STATUS" == "locked" ]]; then
+        log_info "🔐 Desbloqueando Bitwarden..."
+        BW_CMD=$([[ "$BW_STATUS" == "unauthenticated" ]] && echo "login" || echo "unlock")
+
+        if [[ -f "$HOME/.pswds/bw" ]]; then
+            log_info "Usando arquivo de senha: $HOME/.pswds/bw"
+            BW_SESSION=$("$BW_BIN" "$BW_CMD" --raw --passwordfile "$HOME/.pswds/bw")
+        elif [[ -n "$BW_PASSWORD" ]]; then
+            log_info "Usando variável de ambiente BW_PASSWORD"
+            BW_SESSION=$("$BW_BIN" "$BW_CMD" --raw --passwordenv BW_PASSWORD)
+        else
+            log_info "Solicitando senha interativamente..."
+            BW_SESSION=$("$BW_BIN" "$BW_CMD" --raw)
+        fi
+
+        if [[ -n "$BW_SESSION" ]]; then
+            log_success "Bitwarden desbloqueado com sucesso"
+        else
+            log_error "Falha ao desbloquear Bitwarden"
+        fi
+    fi
 else
-    start_install "jq"
-    sudo apt install jq -y
-    end_install "jq"
+    log_info "Sessão Bitwarden já está ativa"
 fi
 
+if [[ -n "$BW_SESSION" ]]; then
+    export BW_SESSION
 
-# ╭──────────────────────────────────────────────╮
-# │ Instalação do Git                            │
-# ╰──────────────────────────────────────────────╯
-start_section "Verificando Git"
-if command_exists git; then
-    end_section "git já está instalado"
+
+    log_info "Sincronizando vault do Bitwarden..."
+    "$BW_BIN" sync
+    log_success "Vault sincronizado"
+
+    log_info "Criando diretório .ssh..."
+    mkdir -p "$HOME"/.ssh && chmod 700 "$HOME"/.ssh
+
+    log_info "Buscando chaves SSH do Bitwarden..."
+    SSH_KEYS=("ssh_github" "dev_server" "efscode_github" "iap_1000")
+    KEYS_FOUND=0
+    KEYS_FAILED=0
+
+    log_info "Total de chaves a processar: ${#SSH_KEYS[@]}"
+
+    for key in "${SSH_KEYS[@]}"; do
+        log_info "═══════════════════════════════════════════════"
+        log_info "Iniciando processamento da chave: $key"
+
+        if get_ssh_key "$key"; then
+            ((KEYS_FOUND++)) || true
+            log_success "✓ Chave $key processada com sucesso (total: $KEYS_FOUND)"
+        else
+            ((KEYS_FAILED++)) || true
+            log_warning "✗ Falha ao processar chave $key (total falhas: $KEYS_FAILED)"
+        fi
+
+        log_info "Status: $KEYS_FOUND encontradas, $KEYS_FAILED falharam"
+    done
+
+    log_info "═══════════════════════════════════════════════"
+    log_success "Chaves processadas: $KEYS_FOUND encontradas, $KEYS_FAILED não encontradas"
+
+    log_info "Configurando credenciais Git..."
+
+    git config --global user.name "$GITHUB_USERNAME"
+
+    GIT_EMAIL=$("$BW_BIN" get username "Git Hub" 2>/dev/null || echo "")
+    if [[ -n "$GIT_EMAIL" ]]; then
+        git config --global user.email "$GIT_EMAIL"
+        log_success "Git user.email configurado: $GIT_EMAIL"
+    else
+        log_warning "Não foi possível recuperar email do Git Hub"
+    fi
+
+    log_success "Configurações Bitwarden/SSH concluídas"
 else
-    start_install "git"
-    sudo apt install git -y
-    end_install "git"
+    log_warning "⚠️  Bitwarden não disponível. Iniciando configuração manual do Git:"
+    read -pr "👤 Username do Git [$GITHUB_USERNAME]: " manual_user
+    git config --global user.name "${manual_user:-$GITHUB_USERNAME}"
+
+    read -pr "📧 Email do Git: " manual_email
+    [[ -n "$manual_email" ]] && git config --global user.email "$manual_email"
 fi
 
-
 # ╭──────────────────────────────────────────────╮
-# │ Configuração do Git                          │
+# │ Finalização e Resumo                         │
 # ╰──────────────────────────────────────────────╯
-start_section "Configurando Git"
-# Verifica variável necessária para Git
-check_env_var "GITHUB_USERNAME"
+print_section "Resumo da Execução"
 
-# Configurações básicas
-git config --global pull.rebase false
-git config --global merge.conflictstyle diff3
-git config --global branch.autosetupmerge always
+echo ""
+echo "📊 Ferramentas instaladas/atualizadas:"
+echo "   • Zsh:           $(zsh --version 2>/dev/null | awk '{print $2}' || echo 'N/A')"
+echo "   • Neovim:        $(nvim --version 2>/dev/null | head -n1 | awk '{print $2}' || echo 'N/A')"
+echo "   • jq:            $(jq --version 2>&1 | grep -oP '\d+\.\d+' || echo 'N/A')"
+echo "   • Git:           $(git --version 2>/dev/null | awk '{print $3}' || echo 'N/A')"
+echo "   • Keychain:      $(keychain --version 2>/dev/null | head -n1 | awk '{print $2}' || echo 'N/A')"
+echo "   • Docker:        $(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',' || echo 'N/A')"
+echo "   • Bitwarden CLI: $("$BW_BIN" --version 2>/dev/null || echo 'N/A')"
+echo ""
 
-# Aliases
-git config --global alias.lg "log --oneline --graph --decorate --all"
-git config --global alias.undo "reset --soft HEAD~1"
-git config --global alias.ac '!git add -A && git commit -m'
-git config --global alias.st status
-git config --global alias.co checkout
-git config --global alias.cm 'commit -m'
-
-# Configura usuário
-git config --global user.name "$GITHUB_USERNAME"
-git config --global user.email "edimar.sa@efscode.com.br"
-
-end_section "Git configurado"
-
-
-# ╭──────────────────────────────────────────────╮
-# │ Configuração do Bitwarden e SSH              │
-# ╰──────────────────────────────────────────────╯
-start_section "Configurando Bitwarden e SSH"
-
-# Verifica variáveis necessárias para Bitwarden
-check_env_var "BW_CLIENTID"
-check_env_var "BW_CLIENTSECRET"
-check_env_var "BW_PASSWORD"
-check_env_var "SERVER_TYPE"
-
-# Define SSH_ITEM baseado no tipo de servidor
-if [[ "$SERVER_TYPE" == "PROD" ]]; then
-    SSH_ITEM="prod_server_deploy_key"
+echo "🐚 Configuração do Shell:"
+echo "   • Shell padrão:  $(basename "$SHELL")"
+if [[ -d "$HOME/.oh-my-zsh" ]]; then
+    echo "   • Oh My Zsh:     Instalado"
+    if [[ -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]]; then
+        echo "   • Plugins:       zsh-autosuggestions ✓"
+    fi
+    if [[ -d "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" ]]; then
+        echo "                    zsh-syntax-highlighting ✓"
+    fi
 else
-    SSH_ITEM="dev_server_deploy_key"
+    echo "   • Oh My Zsh:     Não instalado"
+fi
+echo ""
+
+if [[ -n "$BW_SESSION" ]]; then
+    echo "🔐 Configurações Git:"
+    echo "   • user.name:  $(git config --global user.name || echo 'não configurado')"
+    echo "   • user.email: $(git config --global user.email || echo 'não configurado')"
+    echo ""
+
+    echo "🔑 Chaves SSH baixadas:"
+    for key in "${SSH_KEYS[@]}"; do
+        if [[ -f "$HOME/.ssh/$key" ]]; then
+            echo "   • $key ✓"
+        fi
+    done
+    echo ""
 fi
 
-# Login no Bitwarden
-BW_CMD=~/bin/bw
-"$BW_CMD" logout 2>/dev/null || true
-
-"$BW_CMD" login --apikey
-export BW_CLIENTID="$BW_CLIENTID"
-export BW_CLIENTSECRET="$BW_CLIENTSECRET"
-BW_SESSION=$("$BW_CMD" unlock --passwordenv BW_PASSWORD --raw)
-
-# Configura chave SSH
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-
-# Extrai e configura as chaves SSH
-"$BW_CMD" get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
-    jq -r '.sshKey.privateKey' > ~/.ssh/deploy_key
-
-"$BW_CMD" get item "$SSH_ITEM" --session "$BW_SESSION" --raw | \
-    jq -r '.sshKey.publicKey' > ~/.ssh/deploy_key.pub
-
-# Altera o nível de permissão
-chmod 600 ~/.ssh/deploy_key
-chmod 644 ~/.ssh/deploy_key.pub
-
-# Adicionar ao ssh-agent
-eval "$(ssh-agent -s)" >/dev/null
-ssh-add ~/.ssh/deploy_key
-
-end_section "Bitwarden e SSH configurados"
-
-
-# ╭──────────────────────────────────────────────╮
-# │ Instalação do make                           │
-# ╰──────────────────────────────────────────────╯
-start_section "Verificando Make"
-if command_exists make; then
-    end_section "Make já está instalado"
-else
-    start_install "Make"
-    sudo apt install make -y
-    end_install "Make"
-fi
-
-
-# ╭──────────────────────────────────────────────╮
-# │ Verificando e baixando arquivos de infra     │
-# ╰──────────────────────────────────────────────╯
-start_section "Configurando repositório de infra"
-
-if [[ ! -d ~/InfraProdServer ]]; then
-    git clone git@github.com:$GITHUB_USERNAME/InfraProdServer.git ~/InfraProdServer
-    echo "Repositório clonado com sucesso"
-else
-    echo "Repositório já existe"
-fi
-
-end_section "Repositório configurado"
-
-
-# ╭──────────────────────────────────────────────╮
-# │ Finalização                                  │
-# ╰──────────────────────────────────────────────╯
-start_section "🏁 Configuração concluída!"
-echo "🎉 Tudo pronto!"
-echo "⚠️ Execute os seguintes passos:"
-echo "1. Reinicie o terminal: 'exec bash'"
-echo "2. Para usar Docker sem sudo, faça logout e login novamente"
-echo "3. Verifique o Tailscale: 'tailscale status'"
-echo "🔑 Chave SSH disponível em: ~/.ssh/deploy_key"
+echo "🏁 Script concluído com sucesso em $(date '+%H:%M:%S')"
+log_info "Logs salvos na saída padrão"
