@@ -480,7 +480,7 @@ if [[ -n "$BW_SESSION" ]]; then
     mkdir -p "$HOME"/.ssh && chmod 700 "$HOME"/.ssh
 
     log_info "Buscando chaves SSH do Bitwarden..."
-    SSH_KEYS=("ssh_github" "dev_server" "efscode_github" "iap_1000")
+    SSH_KEYS=("prod_server_deploy_key")
     KEYS_FOUND=0
     KEYS_FAILED=0
 
