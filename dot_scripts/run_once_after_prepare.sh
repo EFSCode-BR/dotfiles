@@ -45,7 +45,7 @@ log_info "Usuário: $USER"
 log_info "Sistema: $(uname -s) $(uname -r)"
 
 if [[ -z "$GITHUB_USERNAME" ]]; then
-    GITHUB_USERNAME="edimar.sa"
+    GITHUB_USERNAME="EFSCode-BR"
     log_info "Usando GITHUB_USERNAME padrão: $GITHUB_USERNAME"
 fi
 

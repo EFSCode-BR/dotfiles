@@ -49,4 +49,4 @@ command -v tailscale >/dev/null && source <(tailscale completion zsh)
 command -v uv >/dev/null && source <(uv generate-shell-completion zsh)
 command -v docker >/dev/null && source <(docker completion zsh)
 
-command -v keychain > /dev/null && eval $(keychain --eval --quiet --agents ssh ssh_github dev_server efscode_github iap_1000)
+command -v keychain > /dev/null && eval $(keychain --eval --quiet --agents ssh deploy_key)
