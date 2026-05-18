@@ -50,3 +50,4 @@ command -v uv >/dev/null && source <(uv generate-shell-completion zsh)
 command -v docker >/dev/null && source <(docker completion zsh)
 
 command -v keychain > /dev/null && eval $(keychain --eval --quiet --agents ssh dev_server_deploy_key)
+
