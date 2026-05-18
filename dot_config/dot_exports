@@ -4,3 +4,8 @@ export GITHUB_USERNAME="EFSCode-BR"
 export DEV_CONTAINER=0
 export EDITOR=code
 export PATH=$PATH:$HOME/bin
+
+if [ -f "$HOME/.bun"]; then
+  export BUN_INSTALL="$HOME/.bun"
+  export PATH="$BUN_INSTALL/bin:$PATH"
+fi
